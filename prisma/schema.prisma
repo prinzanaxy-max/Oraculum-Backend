@@ -1,0 +1,98 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum BookStatus {
+  AVAILABLE
+  MISSING
+}
+
+model User {
+  id             String   @id @default(uuid())
+  fullName       String
+  studentStaffId String   @unique
+  email          String   @unique
+  passwordHash   String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
+model Admin {
+  id           String   @id @default(uuid())
+  name         String
+  email        String   @unique
+  passwordHash String
+  createdAt    DateTime @default(now())
+}
+
+model Book {
+  id            String   @id @default(uuid())
+  title         String
+  author        String
+  isbn          String   @unique
+  category      String
+  publishedYear Int
+  description   String?
+  totalCopies   Int
+  status        BookStatus @default(AVAILABLE)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  BorrowRecords BorrowRecord[]
+  Reservations  Reservation[]
+}
+
+model Member {
+  id         String   @id @default(uuid())
+  studentId  String   @unique
+  memberCode String?  @unique
+  name       String
+  email      String   @unique
+  phone      String?
+  department String?
+  isActive   Boolean  @default(true)
+  createdAt  DateTime @default(now())
+
+  BorrowRecords BorrowRecord[]
+  Reservations  Reservation[]
+}
+
+model BorrowRecord {
+  id         String   @id @default(uuid())
+  bookId     String
+  memberId   String
+  borrowDate DateTime @default(now())
+  dueDate    DateTime
+  returnDate DateTime?
+  status     String   @default("BORROWED") // BORROWED, RETURNED, OVERDUE
+  fineAmount Float    @default(0.0)
+  finePaid   Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  Book   Book   @relation(fields: [bookId], references: [id])
+  Member Member @relation(fields: [memberId], references: [id])
+}
+
+model VisitorLog {
+  id        String   @id @default(uuid())
+  visitedAt DateTime @default(now())
+}
+
+model Reservation {
+  id            String   @id @default(uuid())
+  bookId        String
+  memberId      String
+  status        String   @default("PENDING") // PENDING, READY_FOR_PICKUP, FULFILLED, CANCELLED
+  queuePosition Int      @default(0)
+  reservedAt    DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  Book   Book   @relation(fields: [bookId], references: [id])
+  Member Member @relation(fields: [memberId], references: [id])
+}

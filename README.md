@@ -1,0 +1,272 @@
+# Oraculum Backend
+
+Express + TypeScript backend for the Oraculum university library management admin API.
+
+## Stack
+
+- Node.js + Express
+- TypeScript
+- Prisma ORM
+- PostgreSQL on Neon
+- JWT authentication with `jsonwebtoken`
+- Password hashing with `bcryptjs`
+- Request validation with `zod`
+
+## Setup
+
+Install dependencies:
+
+```bash
+npm install
+```
+
+Create a `.env` file:
+
+```env
+DATABASE_URL="postgresql://USER:PASSWORD@HOST/DB?sslmode=require"
+JWT_SECRET="replace-with-a-long-random-string"
+PORT=3000
+FINE_PER_DAY=1
+LOAN_PERIOD_DAYS=14
+FRONTEND_URL="http://localhost:5173"
+ADMIN_EMAIL="admin@oraculum.edu.gh"
+ADMIN_PASSWORD="ChangeThisPassword123"
+ADMIN_NAME="Head Librarian"
+```
+
+Generate Prisma Client and sync the database:
+
+```bash
+npx prisma generate
+npx prisma db push
+```
+
+Seed demo data:
+
+```bash
+npm run seed
+```
+
+Run in development:
+
+```bash
+npm run dev
+```
+
+Build and run production output:
+
+```bash
+npm run build
+npm start
+```
+
+## Scripts
+
+- `npm run dev` starts the hot-reload development server.
+- `npm run build` compiles TypeScript into `dist/`.
+- `npm start` runs the compiled server.
+- `npm run seed` seeds admin and dashboard demo data.
+- `npm run migrate` runs Prisma migrations.
+- `postinstall` runs `prisma generate`.
+
+## Authentication
+
+The API uses manual JWT authentication.
+
+Public routes:
+
+- `POST /api/auth/signup`
+- `POST /api/auth/login`
+
+Protected routes require:
+
+```http
+Authorization: Bearer <token>
+```
+
+JWT payload:
+
+```json
+{
+  "id": "user-id",
+  "email": "user@example.com"
+}
+```
+
+Tokens expire after 12 hours.
+
+## API Routes
+
+Base URL in development:
+
+```txt
+http://localhost:3000
+```
+
+### Auth
+
+`POST /api/auth/signup`
+
+```json
+{
+  "fullName": "Sarah Jenkins",
+  "studentStaffId": "STF-1001",
+  "email": "sarah@example.com",
+  "password": "Password123!",
+  "confirmPassword": "Password123!"
+}
+```
+
+`POST /api/auth/login`
+
+```json
+{
+  "email": "sarah@example.com",
+  "password": "Password123!"
+}
+```
+
+`GET /api/auth/me`
+
+Returns the authenticated user's public profile.
+
+### Books
+
+`GET /api/books`
+
+Returns all books.
+
+`POST /api/books`
+
+```json
+{
+  "title": "Beloved",
+  "author": "Toni Morrison",
+  "isbn": "978-1400033416",
+  "category": "Fiction",
+  "publishedYear": 1987,
+  "description": "A Pulitzer Prize-winning novel.",
+  "totalCopies": 2,
+  "status": "AVAILABLE"
+}
+```
+
+### Members
+
+`GET /api/members`
+
+Returns all members.
+
+`POST /api/members`
+
+```json
+{
+  "studentId": "STF-2001",
+  "memberCode": "M-2001",
+  "name": "David Chen",
+  "email": "david@example.com",
+  "phone": "+233-20-555-2001",
+  "department": "Computer Science",
+  "isActive": true
+}
+```
+
+### Borrow Records
+
+`GET /api/borrow`
+
+Returns all borrow records with book and member details.
+
+`POST /api/borrow`
+
+```json
+{
+  "bookId": "book-id",
+  "memberId": "member-id",
+  "dueDate": "2026-07-25T00:00:00.000Z"
+}
+```
+
+### Reservations
+
+`GET /api/reservations`
+
+Returns all reservations with book and member details.
+
+`POST /api/reservations`
+
+```json
+{
+  "bookId": "book-id",
+  "memberId": "member-id"
+}
+```
+
+### Dashboard
+
+`GET /api/dashboard/stats?range=last_6_months`
+
+Returns summary cards for borrowed books, returned books, overdue books, missing books, total books, visitors, new members, and pending fees.
+
+Supported ranges:
+
+- `last_7_days`
+- `last_30_days`
+- `last_6_months`
+- `last_year`
+- `all_time`
+
+Optional query:
+
+- `status=active` counts only active borrowed records for `borrowedBooks`.
+
+`GET /api/dashboard/checkout-stats?range=last_6_months`
+
+Returns day-of-week borrow and return counts for the line chart.
+
+`GET /api/dashboard/overdue-history?limit=10`
+
+Returns overdue borrow records joined with book and member data.
+
+`GET /api/dashboard/recent-checkouts?limit=10`
+
+Returns recent borrow records ordered by issue date.
+
+`GET /api/dashboard/books-panel?tab=top&limit=10`
+
+Returns the most borrowed books.
+
+`GET /api/dashboard/books-panel?tab=new&limit=10`
+
+Returns recently added books.
+
+## Postman
+
+Import this collection:
+
+```txt
+docs/oraculum-backend.postman_collection.json
+```
+
+Recommended run order:
+
+1. `Auth / Signup`
+2. `Auth / Login`
+3. `Auth / Me`
+4. `Books / Get Books`
+5. `Members / Get Members`
+6. Remaining protected requests
+
+The collection stores `token`, `bookId`, and `memberId` as collection variables so protected and relational requests can run end-to-end.
+
+## Seed Data
+
+`npm run seed` creates:
+
+- 10 books with real-looking titles/authors
+- 10 members with `M-####` member codes
+- 10 borrow records across `BORROWED`, `RETURNED`, and `OVERDUE`
+- 10 reservations
+- 10 visitor logs across the last 6 months
+
+The seed clears and recreates the demo library data tables before inserting records.
