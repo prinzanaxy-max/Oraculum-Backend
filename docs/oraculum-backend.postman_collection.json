@@ -28,6 +28,10 @@
       "value": ""
     },
     {
+      "key": "googleIdToken",
+      "value": ""
+    },
+    {
       "key": "testEmail",
       "value": ""
     },
@@ -145,6 +149,45 @@
               "path": ["api", "auth", "login"]
             },
             "description": "Authenticates with the test user created by Signup."
+          }
+        },
+        {
+          "name": "Google Sign-In",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Google sign-in returns 200 for a valid Google ID token', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.collectionVariables.set('token', body.accessToken || body.token);",
+                  "pm.collectionVariables.set('refreshToken', body.refreshToken);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"idToken\": \"{{googleIdToken}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/google",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "google"]
+            },
+            "description": "Verifies a Google Identity Services ID token from the frontend. Paste a real Google ID token into `googleIdToken` before running."
           }
         },
         {

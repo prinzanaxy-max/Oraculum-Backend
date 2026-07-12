@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
 import { signAccessToken, signRefreshToken, verifyRefreshToken } from '../utils/jwt';
+import { verifyGoogleToken } from '../utils/googleAuth';
 import { AuthRequest } from '../middleware/auth.middleware';
 import { prisma } from '../lib/prisma';
 import { z } from 'zod';
@@ -20,6 +21,10 @@ const signupSchema = z.object({
 const loginSchema = z.object({
   email: z.email("Invalid email address"),
   password: z.string()
+});
+
+const googleAuthSchema = z.object({
+  idToken: z.string().min(1, 'Google ID token is required'),
 });
 
 const refreshTokenSchema = z.object({
@@ -124,6 +129,14 @@ export const login = async (req: Request, res: Response): Promise<any> => {
       return res.status(401).json({ message: 'Invalid credentials' });
     }
 
+    if (!user.passwordHash && user.authProvider === 'google') {
+      return res.status(400).json({ message: 'This account uses Google sign-in. Please continue with Google.' });
+    }
+
+    if (!user.passwordHash) {
+      return res.status(401).json({ message: 'Invalid credentials' });
+    }
+
     const isMatch = await bcrypt.compare(password, user.passwordHash);
     if (!isMatch) {
       return res.status(401).json({ message: 'Invalid credentials' });
@@ -141,6 +154,60 @@ export const login = async (req: Request, res: Response): Promise<any> => {
     }
     console.error("Login error:", error);
     return res.status(500).json({ message: 'Something went wrong' });
+  }
+};
+
+export const googleSignIn = async (req: Request, res: Response): Promise<any> => {
+  try {
+    const { idToken } = googleAuthSchema.parse(req.body);
+    const googleUser = await verifyGoogleToken(idToken);
+
+    if (!googleUser.emailVerified) {
+      return res.status(403).json({ message: 'Google account email is not verified' });
+    }
+
+    let user = await prisma.user.findUnique({
+      where: { googleId: googleUser.googleId },
+    });
+
+    if (!user) {
+      const existingUserByEmail = await prisma.user.findUnique({
+        where: { email: googleUser.email },
+      });
+
+      if (existingUserByEmail) {
+        user = await prisma.user.update({
+          where: { id: existingUserByEmail.id },
+          data: {
+            googleId: googleUser.googleId,
+            authProvider: existingUserByEmail.passwordHash ? 'local' : 'google',
+          },
+        });
+      } else {
+        user = await prisma.user.create({
+          data: {
+            fullName: googleUser.name,
+            studentStaffId: `GOOGLE-${googleUser.googleId}`,
+            email: googleUser.email,
+            googleId: googleUser.googleId,
+            authProvider: 'google',
+          },
+        });
+      }
+    }
+
+    const tokens = await issueTokenPair(user);
+
+    return res.json({
+      ...tokens,
+      user: toPublicUser(user),
+    });
+  } catch (error: any) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({ errors: (error as any).errors });
+    }
+    console.error("Google sign-in error:", error);
+    return res.status(401).json({ message: 'Invalid Google token' });
   }
 };
 

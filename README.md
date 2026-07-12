@@ -76,11 +76,13 @@ npm start
 ## Authentication
 
 The API uses manual JWT authentication with short-lived access tokens and database-backed refresh tokens.
+It also supports Google Identity Services sign-in by verifying frontend-issued Google ID tokens on the backend.
 
 Public routes:
 
 - `POST /api/auth/signup`
 - `POST /api/auth/login`
+- `POST /api/auth/google`
 - `POST /api/auth/refresh`
 - `POST /api/auth/logout`
 
@@ -132,6 +134,14 @@ http://localhost:3000
 }
 ```
 
+Password login for a Google-only account returns:
+
+```json
+{
+  "message": "This account uses Google sign-in. Please continue with Google."
+}
+```
+
 Both signup and login return:
 
 ```json
@@ -150,6 +160,26 @@ Both signup and login return:
 ```
 
 `token` is included as a temporary compatibility alias for `accessToken`.
+
+`POST /api/auth/google`
+
+Used by the frontend Google Identity Services flow. The frontend sends the Google ID token returned by Google, and the backend verifies it against `GOOGLE_CLIENT_ID`.
+
+```json
+{
+  "idToken": "google-identity-services-id-token"
+}
+```
+
+Behavior:
+
+- Returns `401` for expired, malformed, tampered, or wrong-audience Google ID tokens.
+- Returns `403` if Google says the email is not verified.
+- Looks up an existing user by `googleId`.
+- If no `googleId` match exists, links an existing local account with the same email instead of creating a duplicate.
+- Creates a Google-only user if no matching account exists.
+
+Returns the same token response shape as signup/login.
 
 `POST /api/auth/refresh`
 
@@ -311,7 +341,7 @@ The collection stores `token`, `bookId`, and `memberId` as collection variables 
 - 10 books with real-looking titles/authors
 - Dashboard-scale books with `32,345` total copies and `12` missing books
 - 72 members, including `34` current-period new members
-- 4,360 borrow records powering `2,405` borrowed, `783` returned, and `45` overdue dashboard cards
+- 500 borrow records across current and prior periods, including borrowed, returned, and overdue examples
 - 10 reservations
 - 2,964 visitor logs powering `1,504` current-period visitors
 
