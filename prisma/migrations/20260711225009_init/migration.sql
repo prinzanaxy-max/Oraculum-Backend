@@ -101,9 +101,36 @@ CREATE TABLE "Reservation" (
     "status" TEXT NOT NULL DEFAULT 'PENDING',
     "queuePosition" INTEGER NOT NULL DEFAULT 0,
     "reservedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "readyForPickupAt" TIMESTAMP(3),
+    "pickupExpiresAt" TIMESTAMP(3),
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "Reservation_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "LibrarySettings" (
+    "id" TEXT NOT NULL DEFAULT 'default',
+    "loanPeriodDays" INTEGER NOT NULL DEFAULT 14,
+    "finePerDay" DOUBLE PRECISION NOT NULL DEFAULT 1,
+    "maxReservationsPerMember" INTEGER NOT NULL DEFAULT 5,
+    "autoNotifyOverdue" BOOLEAN NOT NULL DEFAULT true,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "LibrarySettings_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "SupportRequest" (
+    "id" TEXT NOT NULL,
+    "subject" TEXT NOT NULL,
+    "message" TEXT NOT NULL,
+    "userId" TEXT,
+    "userEmail" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "SupportRequest_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable

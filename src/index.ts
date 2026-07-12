@@ -9,6 +9,8 @@ import borrowRoutes from './routes/borrow.routes';
 import reservationsRoutes from './routes/reservations.routes';
 import dashboardRoutes from './routes/dashboard.routes';
 import finesRoutes from './routes/fines.routes';
+import settingsRoutes from './routes/settings.routes';
+import supportRoutes from './routes/support.routes';
 
 const app = express();
 
@@ -40,6 +42,8 @@ app.use('/api/borrow', borrowRoutes);
 app.use('/api/reservations', reservationsRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/fines', finesRoutes);
+app.use('/api/settings', settingsRoutes);
+app.use('/api/support', supportRoutes);
 
 const PORT = process.env.PORT || 4000;
 

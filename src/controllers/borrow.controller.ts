@@ -14,6 +14,8 @@ const addDays = (date: Date, days: number) => {
   return next;
 };
 
+const getPickupWindowDays = () => Number(process.env.RESERVATION_PICKUP_DAYS) || 3;
+
 const formatDate = (date: Date | null) => (date ? date.toISOString() : null);
 const getParam = (value: string | string[] | undefined) => (Array.isArray(value) ? value[0] : value);
 
@@ -163,19 +165,71 @@ export const returnBorrowRecord = async (req: Request, res: Response) => {
 
     const returnedAt = new Date();
     const fineAmount = calculateFine(existing.dueDate, returnedAt);
-    const record = await prisma.borrowRecord.update({
-      where: { id: existing.id },
-      data: {
-        returnDate: returnedAt,
-        status: 'RETURNED',
-        fineAmount,
-        fineStatus: fineAmount > 0 ? 'pending' : 'paid',
-        finePaid: fineAmount === 0,
-      },
-      include: { Book: true, Member: true },
+    const [record, readyReservation] = await prisma.$transaction(async (tx) => {
+      const updatedRecord = await tx.borrowRecord.update({
+        where: { id: existing.id },
+        data: {
+          returnDate: returnedAt,
+          status: 'RETURNED',
+          fineAmount,
+          fineStatus: fineAmount > 0 ? 'pending' : 'paid',
+          finePaid: fineAmount === 0,
+        },
+        include: { Book: true, Member: true },
+      });
+
+      const nextReservation = await tx.reservation.findFirst({
+        where: { bookId: existing.bookId, status: 'PENDING' },
+        orderBy: [
+          { queuePosition: 'asc' },
+          { reservedAt: 'asc' },
+        ],
+      });
+
+      if (!nextReservation) {
+        return [updatedRecord, null] as const;
+      }
+
+      const readyForPickupAt = new Date();
+      const pickupExpiresAt = addDays(readyForPickupAt, getPickupWindowDays());
+      const promotedReservation = await tx.reservation.update({
+        where: { id: nextReservation.id },
+        data: {
+          status: 'READY_FOR_PICKUP',
+          readyForPickupAt,
+          pickupExpiresAt,
+          queuePosition: 1,
+        },
+      });
+
+      await tx.reservation.updateMany({
+        where: {
+          bookId: existing.bookId,
+          status: 'PENDING',
+          id: { not: nextReservation.id },
+          queuePosition: { gt: 1 },
+        },
+        data: {
+          queuePosition: {
+            decrement: 1,
+          },
+        },
+      });
+
+      return [updatedRecord, promotedReservation] as const;
     });
 
-    res.json({ record: toBorrowResponse(record) });
+    res.json({
+      record: toBorrowResponse(record),
+      readyReservation: readyReservation
+        ? {
+            id: readyReservation.id,
+            status: 'ready_for_pickup',
+            readyForPickupAt: readyReservation.readyForPickupAt?.toISOString() ?? null,
+            pickupExpiresAt: readyReservation.pickupExpiresAt?.toISOString() ?? null,
+          }
+        : null,
+    });
   } catch (error) {
     console.error('Return borrow record error:', error);
     res.status(500).json({ message: 'Something went wrong' });

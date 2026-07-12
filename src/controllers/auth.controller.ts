@@ -137,6 +137,16 @@ export const signup = async (req: Request, res: Response): Promise<any> => {
     if (error instanceof z.ZodError) {
       return res.status(400).json({ message: (error as any).issues?.[0]?.message || 'Invalid request' });
     }
+
+    if (error.code === 'P2002') {
+      const target = Array.isArray(error.meta?.target) ? error.meta.target.join(', ') : '';
+      const message = target.includes('studentStaffId')
+        ? 'Student/Staff ID is already taken'
+        : 'Email is already taken';
+
+      return res.status(409).json({ message });
+    }
+
     console.error("Signup error:", error);
     return res.status(500).json({ message: 'Something went wrong' });
   }

@@ -12,12 +12,14 @@ const getParam = (value: string | string[] | undefined) => (Array.isArray(value)
 const mapReservationStatusToApi = (status: string) => {
   if (status === 'FULFILLED') return 'fulfilled';
   if (status === 'CANCELLED') return 'cancelled';
+  if (status === 'READY_FOR_PICKUP') return 'ready_for_pickup';
   return 'pending';
 };
 
 const mapReservationStatusToDb = (status?: unknown) => {
   if (status === 'fulfilled') return 'FULFILLED';
   if (status === 'cancelled') return 'CANCELLED';
+  if (status === 'ready_for_pickup' || status === 'ready-for-pickup') return 'READY_FOR_PICKUP';
   if (status === 'pending') return 'PENDING';
   return undefined;
 };
@@ -28,6 +30,9 @@ const toReservationResponse = (record: {
   memberId: string;
   reservedAt: Date;
   status: string;
+  queuePosition: number;
+  readyForPickupAt: Date | null;
+  pickupExpiresAt: Date | null;
   Book?: { title: string };
   Member?: { name: string; memberCode: string | null; studentId: string };
 }) => ({
@@ -38,6 +43,9 @@ const toReservationResponse = (record: {
   memberName: record.Member?.name,
   memberCode: record.Member?.memberCode ?? record.Member?.studentId,
   reservationDate: record.reservedAt.toISOString(),
+  queuePosition: record.queuePosition,
+  readyForPickupAt: record.readyForPickupAt?.toISOString() ?? null,
+  pickupExpiresAt: record.pickupExpiresAt?.toISOString() ?? null,
   status: mapReservationStatusToApi(record.status),
 });
 

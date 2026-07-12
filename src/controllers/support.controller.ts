@@ -1,0 +1,33 @@
+import { Response } from 'express';
+import { z } from 'zod';
+import { AuthRequest } from '../middleware/auth.middleware';
+import { prisma } from '../lib/prisma';
+
+const contactSchema = z.object({
+  subject: z.string().min(1, 'Subject is required'),
+  message: z.string().min(1, 'Message is required'),
+});
+
+export const createSupportContact = async (req: AuthRequest, res: Response) => {
+  try {
+    const data = contactSchema.parse(req.body);
+
+    await prisma.supportRequest.create({
+      data: {
+        subject: data.subject,
+        message: data.message,
+        userId: req.userId,
+        userEmail: req.userEmail,
+      },
+    });
+
+    res.status(201).json({ message: 'Support request received' });
+  } catch (error: any) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({ message: (error as any).issues?.[0]?.message || 'Invalid request' });
+    }
+
+    console.error('Create support contact error:', error);
+    res.status(500).json({ message: 'Something went wrong' });
+  }
+};

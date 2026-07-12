@@ -118,8 +118,29 @@ model Reservation {
   status        String   @default("PENDING") // PENDING, READY_FOR_PICKUP, FULFILLED, CANCELLED
   queuePosition Int      @default(0)
   reservedAt    DateTime @default(now())
+  readyForPickupAt DateTime?
+  pickupExpiresAt  DateTime?
   updatedAt     DateTime @updatedAt
 
   Book   Book   @relation(fields: [bookId], references: [id])
   Member Member @relation(fields: [memberId], references: [id])
+}
+
+model LibrarySettings {
+  id                       String   @id @default("default")
+  loanPeriodDays           Int      @default(14)
+  finePerDay               Float    @default(1)
+  maxReservationsPerMember Int      @default(5)
+  autoNotifyOverdue        Boolean  @default(true)
+  createdAt                DateTime @default(now())
+  updatedAt                DateTime @updatedAt
+}
+
+model SupportRequest {
+  id        String   @id @default(uuid())
+  subject   String
+  message   String
+  userId    String?
+  userEmail String?
+  createdAt DateTime @default(now())
 }
