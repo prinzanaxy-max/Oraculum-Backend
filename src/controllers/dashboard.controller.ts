@@ -168,8 +168,11 @@ export const getDashboardStats = async (req: Request, res: Response) => {
       _sum: { fineAmount: true },
     });
 
+    const borrowedBooksStat = buildStat(borrowedBooks, previousBorrowedBooks);
+
     res.json({
-      borrowedBooks: buildStat(borrowedBooks, previousBorrowedBooks),
+      borrowRecords: borrowedBooksStat,
+      borrowedBooks: borrowedBooksStat,
       returnedBooks: buildStat(returnedBooks, previousReturnedBooks),
       overdueBooks: buildStat(overdueBooks, previousOverdueBooks),
       missingBooks: buildStat(missingBooks, previousMissingBooks),

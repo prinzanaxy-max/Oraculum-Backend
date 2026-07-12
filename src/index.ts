@@ -8,6 +8,7 @@ import membersRoutes from './routes/members.routes';
 import borrowRoutes from './routes/borrow.routes';
 import reservationsRoutes from './routes/reservations.routes';
 import dashboardRoutes from './routes/dashboard.routes';
+import finesRoutes from './routes/fines.routes';
 
 const app = express();
 
@@ -38,6 +39,7 @@ app.use('/api/members', membersRoutes);
 app.use('/api/borrow', borrowRoutes);
 app.use('/api/reservations', reservationsRoutes);
 app.use('/api/dashboard', dashboardRoutes);
+app.use('/api/fines', finesRoutes);
 
 const PORT = process.env.PORT || 4000;
 

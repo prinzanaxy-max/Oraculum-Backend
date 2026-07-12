@@ -9,13 +9,17 @@ import { z } from 'zod';
 
 const signupSchema = z.object({
   fullName: z.string().min(1, "Full name is required"),
-  studentStaffId: z.string().min(1, "Student/Staff ID is required"),
+  studentStaffId: z.string().min(1, "Student/Staff ID is required").optional(),
+  studentId: z.string().min(1, "Student ID is required").optional(),
   email: z.email("Invalid email address"),
   password: z.string().min(8, "Password must be at least 8 characters long"),
-  confirmPassword: z.string()
-}).refine((data) => data.password === data.confirmPassword, {
+  confirmPassword: z.string().optional()
+}).refine((data) => data.confirmPassword === undefined || data.password === data.confirmPassword, {
   message: "Passwords don't match",
   path: ["confirmPassword"],
+}).refine((data) => Boolean(data.studentStaffId || data.studentId), {
+  message: "Student ID is required",
+  path: ["studentId"],
 });
 
 const loginSchema = z.object({
@@ -25,6 +29,23 @@ const loginSchema = z.object({
 
 const googleAuthSchema = z.object({
   idToken: z.string().min(1, 'Google ID token is required'),
+});
+
+const forgotPasswordSchema = z.object({
+  email: z.email('Invalid email address'),
+});
+
+const updateMeSchema = z.object({
+  fullName: z.string().min(1).optional(),
+  name: z.string().min(1).optional(),
+  email: z.email().optional(),
+  phone: z.string().optional().nullable(),
+  avatarUrl: z.string().url().optional().nullable(),
+});
+
+const changePasswordSchema = z.object({
+  currentPassword: z.string().min(1, 'Current password is required'),
+  newPassword: z.string().min(8, 'New password must be at least 8 characters long'),
 });
 
 const refreshTokenSchema = z.object({
@@ -43,10 +64,13 @@ const hashRefreshToken = (refreshToken: string) => {
   return crypto.createHash('sha256').update(refreshToken).digest('hex');
 };
 
-const toPublicUser = (user: { id: string; fullName: string; email: string }) => ({
+const toPublicUser = (user: { id: string; fullName: string; email: string; phone?: string | null; avatarUrl?: string | null }) => ({
   id: user.id,
+  name: user.fullName,
   fullName: user.fullName,
   email: user.email,
+  phone: user.phone ?? null,
+  avatarUrl: user.avatarUrl ?? null,
 });
 
 const issueTokenPair = async (user: { id: string; email: string }) => {
@@ -73,7 +97,8 @@ const issueTokenPair = async (user: { id: string; email: string }) => {
 export const signup = async (req: Request, res: Response): Promise<any> => {
   try {
     const validatedData = signupSchema.parse(req.body);
-    const { fullName, studentStaffId, email, password } = validatedData;
+    const { fullName, email, password } = validatedData;
+    const studentStaffId = validatedData.studentStaffId ?? validatedData.studentId!;
 
     const existingUserByEmail = await prisma.user.findUnique({
       where: { email },
@@ -110,12 +135,14 @@ export const signup = async (req: Request, res: Response): Promise<any> => {
     });
   } catch (error: any) {
     if (error instanceof z.ZodError) {
-      return res.status(400).json({ errors: (error as any).errors });
+      return res.status(400).json({ message: (error as any).issues?.[0]?.message || 'Invalid request' });
     }
     console.error("Signup error:", error);
     return res.status(500).json({ message: 'Something went wrong' });
   }
 };
+
+export const register = signup;
 
 export const login = async (req: Request, res: Response): Promise<any> => {
   try {
@@ -150,7 +177,7 @@ export const login = async (req: Request, res: Response): Promise<any> => {
     });
   } catch (error: any) {
     if (error instanceof z.ZodError) {
-      return res.status(400).json({ errors: (error as any).errors });
+      return res.status(400).json({ message: (error as any).issues?.[0]?.message || 'Invalid request' });
     }
     console.error("Login error:", error);
     return res.status(500).json({ message: 'Something went wrong' });
@@ -204,10 +231,24 @@ export const googleSignIn = async (req: Request, res: Response): Promise<any> =>
     });
   } catch (error: any) {
     if (error instanceof z.ZodError) {
-      return res.status(400).json({ errors: (error as any).errors });
+      return res.status(400).json({ message: (error as any).issues?.[0]?.message || 'Invalid request' });
     }
     console.error("Google sign-in error:", error);
     return res.status(401).json({ message: 'Invalid Google token' });
+  }
+};
+
+export const forgotPassword = async (req: Request, res: Response): Promise<any> => {
+  try {
+    forgotPasswordSchema.parse(req.body);
+    return res.status(204).send();
+  } catch (error: any) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({ message: (error as any).issues?.[0]?.message || 'Invalid request' });
+    }
+
+    console.error("Forgot password error:", error);
+    return res.status(500).json({ message: 'Something went wrong' });
   }
 };
 
@@ -247,7 +288,7 @@ export const refresh = async (req: Request, res: Response): Promise<any> => {
     });
   } catch (error: any) {
     if (error instanceof z.ZodError) {
-      return res.status(400).json({ errors: (error as any).errors });
+      return res.status(400).json({ message: (error as any).issues?.[0]?.message || 'Invalid request' });
     }
     console.error("Refresh token error:", error);
     return res.status(401).json({ message: 'Invalid refresh token' });
@@ -269,7 +310,7 @@ export const logout = async (req: Request, res: Response): Promise<any> => {
     return res.json({ message: 'Logged out successfully' });
   } catch (error: any) {
     if (error instanceof z.ZodError) {
-      return res.status(400).json({ errors: (error as any).errors });
+      return res.status(400).json({ message: (error as any).issues?.[0]?.message || 'Invalid request' });
     }
     console.error("Logout error:", error);
     return res.status(500).json({ message: 'Something went wrong' });
@@ -289,6 +330,8 @@ export const getMe = async (req: AuthRequest, res: Response): Promise<any> => {
         id: true,
         fullName: true,
         email: true,
+        phone: true,
+        avatarUrl: true,
         studentStaffId: true,
         createdAt: true,
       }
@@ -301,6 +344,77 @@ export const getMe = async (req: AuthRequest, res: Response): Promise<any> => {
     return res.json({ user });
   } catch (error) {
     console.error("Get /me error:", error);
+    return res.status(500).json({ message: 'Something went wrong' });
+  }
+};
+
+export const updateMe = async (req: AuthRequest, res: Response): Promise<any> => {
+  try {
+    if (!req.userId) {
+      return res.status(401).json({ message: 'Unauthorized' });
+    }
+
+    const data = updateMeSchema.parse(req.body);
+    const user = await prisma.user.update({
+      where: { id: req.userId },
+      data: {
+        ...(data.fullName !== undefined || data.name !== undefined ? { fullName: data.fullName ?? data.name } : {}),
+        ...(data.email !== undefined ? { email: data.email } : {}),
+        ...(data.phone !== undefined ? { phone: data.phone } : {}),
+        ...(data.avatarUrl !== undefined ? { avatarUrl: data.avatarUrl } : {}),
+      },
+    });
+
+    return res.json({ user: toPublicUser(user) });
+  } catch (error: any) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({ message: (error as any).issues?.[0]?.message || 'Invalid request' });
+    }
+
+    if (error.code === 'P2002') {
+      return res.status(409).json({ message: 'A user with this email already exists.' });
+    }
+
+    console.error("Update me error:", error);
+    return res.status(500).json({ message: 'Something went wrong' });
+  }
+};
+
+export const changePassword = async (req: AuthRequest, res: Response): Promise<any> => {
+  try {
+    if (!req.userId) {
+      return res.status(401).json({ message: 'Unauthorized' });
+    }
+
+    const { currentPassword, newPassword } = changePasswordSchema.parse(req.body);
+    const user = await prisma.user.findUnique({ where: { id: req.userId } });
+
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    if (!user.passwordHash) {
+      return res.status(400).json({ message: 'This account uses Google sign-in. Please continue with Google.' });
+    }
+
+    const isMatch = await bcrypt.compare(currentPassword, user.passwordHash);
+    if (!isMatch) {
+      return res.status(401).json({ message: 'Invalid current password' });
+    }
+
+    const passwordHash = await bcrypt.hash(newPassword, 10);
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { passwordHash },
+    });
+
+    return res.json({ message: 'Password changed successfully' });
+  } catch (error: any) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({ message: (error as any).issues?.[0]?.message || 'Invalid request' });
+    }
+
+    console.error("Change password error:", error);
     return res.status(500).json({ message: 'Something went wrong' });
   }
 };

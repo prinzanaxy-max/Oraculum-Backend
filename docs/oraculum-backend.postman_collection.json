@@ -343,7 +343,8 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test('Get members returns 200', () => pm.response.to.have.status(200));",
-                  "const members = pm.response.json();",
+                  "const body = pm.response.json();",
+                  "const members = body.members || body.data || [];",
                   "if (Array.isArray(members) && members.length) pm.collectionVariables.set('memberId', members[0].id);"
                 ]
               }
@@ -359,6 +360,27 @@
           }
         },
         {
+          "name": "Search Members",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/members?query=Postman&fields=name,email,studentId,memberId,registerId",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "members"],
+              "query": [
+                {
+                  "key": "query",
+                  "value": "Postman"
+                },
+                {
+                  "key": "fields",
+                  "value": "name,email,studentId,memberId,registerId"
+                }
+              ]
+            }
+          }
+        },
+        {
           "name": "Create Member",
           "event": [
             {
@@ -367,7 +389,6 @@
                 "type": "text/javascript",
                 "exec": [
                   "const suffix = Date.now();",
-                  "pm.collectionVariables.set('memberCode', `M-${String(suffix).slice(-4)}`);",
                   "pm.collectionVariables.set('memberStudentId', `MEM-${suffix}`);",
                   "pm.collectionVariables.set('memberEmail', `member-${suffix}@oraculum.edu.gh`);"
                 ]
@@ -395,13 +416,46 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"studentId\": \"{{memberStudentId}}\",\n  \"memberCode\": \"{{memberCode}}\",\n  \"name\": \"Postman Member\",\n  \"email\": \"{{memberEmail}}\",\n  \"phone\": \"+233-20-555-9000\",\n  \"department\": \"Computer Science\",\n  \"isActive\": true\n}"
+              "raw": "{\n  \"name\": \"Postman Member\",\n  \"studentId\": \"{{memberStudentId}}\",\n  \"email\": \"{{memberEmail}}\",\n  \"phone\": \"+233-20-555-9000\",\n  \"department\": \"Computer Science\"\n}"
             },
             "url": {
               "raw": "{{baseUrl}}/api/members",
               "host": ["{{baseUrl}}"],
               "path": ["api", "members"]
             }
+          }
+        },
+        {
+          "name": "Update Member",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Updated Postman Member\",\n  \"department\": \"Information Science\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/members/{{memberId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "members", "{{memberId}}"]
+            }
+          }
+        },
+        {
+          "name": "Delete Member",
+          "request": {
+            "method": "DELETE",
+            "url": {
+              "raw": "{{baseUrl}}/api/members/{{memberId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "members", "{{memberId}}"]
+            },
+            "description": "Returns 204 when the member has no active borrows. Returns 409 if active borrows exist."
           }
         }
       ]

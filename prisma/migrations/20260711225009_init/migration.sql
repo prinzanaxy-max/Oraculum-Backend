@@ -1,5 +1,5 @@
 -- CreateEnum
-CREATE TYPE "BookStatus" AS ENUM ('AVAILABLE', 'MISSING');
+CREATE TYPE "BookStatus" AS ENUM ('AVAILABLE', 'MISSING', 'BORROWED', 'RESERVED', 'MAINTENANCE');
 
 -- CreateTable
 CREATE TABLE "User" (
@@ -7,6 +7,8 @@ CREATE TABLE "User" (
     "fullName" TEXT NOT NULL,
     "studentStaffId" TEXT NOT NULL,
     "email" TEXT NOT NULL,
+    "phone" TEXT,
+    "avatarUrl" TEXT,
     "passwordHash" TEXT,
     "googleId" TEXT,
     "authProvider" TEXT NOT NULL DEFAULT 'local',
@@ -50,6 +52,7 @@ CREATE TABLE "Book" (
     "publishedYear" INTEGER NOT NULL,
     "description" TEXT,
     "totalCopies" INTEGER NOT NULL,
+    "shelfLocation" TEXT,
     "status" "BookStatus" NOT NULL DEFAULT 'AVAILABLE',
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
@@ -62,6 +65,7 @@ CREATE TABLE "Member" (
     "id" TEXT NOT NULL,
     "studentId" TEXT NOT NULL,
     "memberCode" TEXT,
+    "registerId" TEXT,
     "name" TEXT NOT NULL,
     "email" TEXT NOT NULL,
     "phone" TEXT,
@@ -83,6 +87,7 @@ CREATE TABLE "BorrowRecord" (
     "status" TEXT NOT NULL DEFAULT 'BORROWED',
     "fineAmount" DOUBLE PRECISION NOT NULL DEFAULT 0.0,
     "finePaid" BOOLEAN NOT NULL DEFAULT false,
+    "fineStatus" TEXT NOT NULL DEFAULT 'pending',
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "BorrowRecord_pkey" PRIMARY KEY ("id")
@@ -138,6 +143,9 @@ CREATE UNIQUE INDEX "Member_studentId_key" ON "Member"("studentId");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "Member_memberCode_key" ON "Member"("memberCode");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "Member_registerId_key" ON "Member"("registerId");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "Member_email_key" ON "Member"("email");

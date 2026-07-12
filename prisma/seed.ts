@@ -190,7 +190,8 @@ async function main() {
     seededMemberNames.map((name, index) =>
       prisma.member.create({
         data: {
-          memberCode: `M-${String(1024 + index).padStart(4, '0')}`,
+          memberCode: `MEM-${String(1024 + index).padStart(4, '0')}`,
+          registerId: `REG-${String(1024 + index).padStart(4, '0')}`,
           studentId: `STF-${String(1024 + index).padStart(4, '0')}`,
           name,
           email: `${name.toLowerCase().replace(/[^a-z]+/g, '.').replace(/\.$/, '')}@oraculum.edu.gh`,
@@ -236,7 +237,7 @@ async function main() {
 
   pushBorrowRecords(300, 'BORROWED', 1, {});
   pushBorrowRecords(120, 'RETURNED', 20, { returned: true });
-  pushBorrowRecords(20, 'OVERDUE', 35, { fineAmount: 17 });
+  pushBorrowRecords(20, 'OVERDUE', 35, { fineAmount: 38.25 });
   pushBorrowRecords(40, 'BORROWED', 190, { previous: true });
   pushBorrowRecords(15, 'RETURNED', 205, { returned: true, previous: true });
   pushBorrowRecords(5, 'OVERDUE', 205, { fineAmount: 12.25, previous: true });

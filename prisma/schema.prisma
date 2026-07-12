@@ -11,6 +11,9 @@ datasource db {
 enum BookStatus {
   AVAILABLE
   MISSING
+  BORROWED
+  RESERVED
+  MAINTENANCE
 }
 
 model User {
@@ -18,6 +21,8 @@ model User {
   fullName       String
   studentStaffId String   @unique
   email          String   @unique
+  phone          String?
+  avatarUrl      String?
   passwordHash   String?
   googleId       String?  @unique
   authProvider   String   @default("local")
@@ -59,6 +64,7 @@ model Book {
   publishedYear Int
   description   String?
   totalCopies   Int
+  shelfLocation String?
   status        BookStatus @default(AVAILABLE)
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
@@ -71,6 +77,7 @@ model Member {
   id         String   @id @default(uuid())
   studentId  String   @unique
   memberCode String?  @unique
+  registerId String?  @unique
   name       String
   email      String   @unique
   phone      String?
@@ -92,6 +99,7 @@ model BorrowRecord {
   status     String   @default("BORROWED") // BORROWED, RETURNED, OVERDUE
   fineAmount Float    @default(0.0)
   finePaid   Boolean  @default(false)
+  fineStatus String   @default("pending") // pending, paid, waived
   createdAt  DateTime @default(now())
 
   Book   Book   @relation(fields: [bookId], references: [id])
