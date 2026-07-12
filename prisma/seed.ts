@@ -224,7 +224,7 @@ async function main() {
         bookId: books[index % books.length].id,
         memberId: members[index % members.length].id,
         borrowDate,
-        dueDate: status === 'OVERDUE' ? daysAgo(options.previous ? startOffset + (index % 160) : 15 + (index % 25)) : dueDate,
+        dueDate,
         returnDate,
         status,
         fineAmount: options.fineAmount ?? 0,
@@ -236,10 +236,10 @@ async function main() {
 
   pushBorrowRecords(300, 'BORROWED', 1, {});
   pushBorrowRecords(120, 'RETURNED', 20, { returned: true });
-  pushBorrowRecords(20, 'OVERDUE', 5, { fineAmount: 17 });
+  pushBorrowRecords(20, 'OVERDUE', 35, { fineAmount: 17 });
   pushBorrowRecords(40, 'BORROWED', 190, { previous: true });
   pushBorrowRecords(15, 'RETURNED', 205, { returned: true, previous: true });
-  pushBorrowRecords(5, 'OVERDUE', 192, { fineAmount: 12.25, previous: true });
+  pushBorrowRecords(5, 'OVERDUE', 205, { fineAmount: 12.25, previous: true });
 
   await createManyInChunks(borrowRecords, (data) => prisma.borrowRecord.createMany({ data }), 500);
 
