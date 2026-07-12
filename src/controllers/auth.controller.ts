@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import bcrypt from 'bcryptjs';
-import { signToken } from '../utils/jwt';
+import crypto from 'crypto';
+import { signAccessToken, signRefreshToken, verifyRefreshToken } from '../utils/jwt';
 import { AuthRequest } from '../middleware/auth.middleware';
 import { prisma } from '../lib/prisma';
 import { z } from 'zod';
@@ -20,6 +21,49 @@ const loginSchema = z.object({
   email: z.email("Invalid email address"),
   password: z.string()
 });
+
+const refreshTokenSchema = z.object({
+  refreshToken: z.string().min(1, 'Refresh token is required'),
+});
+
+const logoutSchema = refreshTokenSchema;
+
+const addDays = (days: number) => {
+  const date = new Date();
+  date.setDate(date.getDate() + days);
+  return date;
+};
+
+const hashRefreshToken = (refreshToken: string) => {
+  return crypto.createHash('sha256').update(refreshToken).digest('hex');
+};
+
+const toPublicUser = (user: { id: string; fullName: string; email: string }) => ({
+  id: user.id,
+  fullName: user.fullName,
+  email: user.email,
+});
+
+const issueTokenPair = async (user: { id: string; email: string }) => {
+  const accessToken = signAccessToken({ id: user.id, email: user.email });
+  const refreshToken = signRefreshToken({ id: user.id, email: user.email });
+
+  await prisma.refreshToken.create({
+    data: {
+      tokenHash: hashRefreshToken(refreshToken),
+      userId: user.id,
+      expiresAt: addDays(7),
+    },
+  });
+
+  return {
+    accessToken,
+    refreshToken,
+    token: accessToken,
+    tokenType: 'Bearer',
+    expiresIn: 15 * 60,
+  };
+};
 
 export const signup = async (req: Request, res: Response): Promise<any> => {
   try {
@@ -53,15 +97,11 @@ export const signup = async (req: Request, res: Response): Promise<any> => {
       },
     });
 
-    const token = signToken({ id: user.id, email: user.email });
+    const tokens = await issueTokenPair(user);
 
     return res.status(201).json({
-      token,
-      user: {
-        id: user.id,
-        fullName: user.fullName,
-        email: user.email,
-      }
+      ...tokens,
+      user: toPublicUser(user),
     });
   } catch (error: any) {
     if (error instanceof z.ZodError) {
@@ -89,21 +129,82 @@ export const login = async (req: Request, res: Response): Promise<any> => {
       return res.status(401).json({ message: 'Invalid credentials' });
     }
 
-    const token = signToken({ id: user.id, email: user.email });
+    const tokens = await issueTokenPair(user);
 
     return res.json({
-      token,
-      user: {
-        id: user.id,
-        fullName: user.fullName,
-        email: user.email,
-      }
+      ...tokens,
+      user: toPublicUser(user),
     });
   } catch (error: any) {
     if (error instanceof z.ZodError) {
       return res.status(400).json({ errors: (error as any).errors });
     }
     console.error("Login error:", error);
+    return res.status(500).json({ message: 'Something went wrong' });
+  }
+};
+
+export const refresh = async (req: Request, res: Response): Promise<any> => {
+  try {
+    const { refreshToken } = refreshTokenSchema.parse(req.body);
+    const payload = verifyRefreshToken(refreshToken);
+    const tokenHash = hashRefreshToken(refreshToken);
+
+    const storedToken = await prisma.refreshToken.findUnique({
+      where: { tokenHash },
+      include: {
+        User: {
+          select: {
+            id: true,
+            fullName: true,
+            email: true,
+          },
+        },
+      },
+    });
+
+    if (!storedToken || storedToken.revokedAt || storedToken.expiresAt <= new Date() || storedToken.userId !== payload.id) {
+      return res.status(401).json({ message: 'Invalid refresh token' });
+    }
+
+    await prisma.refreshToken.update({
+      where: { id: storedToken.id },
+      data: { revokedAt: new Date() },
+    });
+
+    const tokens = await issueTokenPair(storedToken.User);
+
+    return res.json({
+      ...tokens,
+      user: toPublicUser(storedToken.User),
+    });
+  } catch (error: any) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({ errors: (error as any).errors });
+    }
+    console.error("Refresh token error:", error);
+    return res.status(401).json({ message: 'Invalid refresh token' });
+  }
+};
+
+export const logout = async (req: Request, res: Response): Promise<any> => {
+  try {
+    const { refreshToken } = logoutSchema.parse(req.body);
+
+    await prisma.refreshToken.updateMany({
+      where: {
+        tokenHash: hashRefreshToken(refreshToken),
+        revokedAt: null,
+      },
+      data: { revokedAt: new Date() },
+    });
+
+    return res.json({ message: 'Logged out successfully' });
+  } catch (error: any) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({ errors: (error as any).errors });
+    }
+    console.error("Logout error:", error);
     return res.status(500).json({ message: 'Something went wrong' });
   }
 };

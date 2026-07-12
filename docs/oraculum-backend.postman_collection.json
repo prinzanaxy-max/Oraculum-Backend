@@ -24,6 +24,10 @@
       "value": ""
     },
     {
+      "key": "refreshToken",
+      "value": ""
+    },
+    {
       "key": "testEmail",
       "value": ""
     },
@@ -74,7 +78,8 @@
                   "pm.test('Signup returns 201', () => pm.response.to.have.status(201));",
                   "const body = pm.response.json();",
                   "pm.test('Signup returns JWT', () => pm.expect(body.token).to.be.a('string').and.not.empty);",
-                  "pm.collectionVariables.set('token', body.token);"
+                  "pm.collectionVariables.set('token', body.accessToken || body.token);",
+                  "pm.collectionVariables.set('refreshToken', body.refreshToken);"
                 ]
               }
             }
@@ -113,7 +118,8 @@
                   "pm.test('Login returns 200', () => pm.response.to.have.status(200));",
                   "const body = pm.response.json();",
                   "pm.test('Login returns JWT', () => pm.expect(body.token).to.be.a('string').and.not.empty);",
-                  "pm.collectionVariables.set('token', body.token);"
+                  "pm.collectionVariables.set('token', body.accessToken || body.token);",
+                  "pm.collectionVariables.set('refreshToken', body.refreshToken);"
                 ]
               }
             }
@@ -139,6 +145,70 @@
               "path": ["api", "auth", "login"]
             },
             "description": "Authenticates with the test user created by Signup."
+          }
+        },
+        {
+          "name": "Refresh Token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Refresh returns 200', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.collectionVariables.set('token', body.accessToken || body.token);",
+                  "pm.collectionVariables.set('refreshToken', body.refreshToken);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refreshToken\": \"{{refreshToken}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/refresh",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "refresh"]
+            },
+            "description": "Rotates a valid refresh token and returns a new access/refresh token pair."
+          }
+        },
+        {
+          "name": "Logout",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refreshToken\": \"{{refreshToken}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/logout",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "logout"]
+            },
+            "description": "Revokes the provided refresh token."
           }
         },
         {

@@ -32,7 +32,11 @@ FRONTEND_URL="http://localhost:5173"
 ADMIN_EMAIL="admin@oraculum.edu.gh"
 ADMIN_PASSWORD="ChangeThisPassword123"
 ADMIN_NAME="Head Librarian"
+GOOGLE_CLIENT_ID="your-google-oauth-client-id"
+GOOGLE_CLIENT_SECRET="your-google-oauth-client-secret"
 ```
+
+Keep real OAuth credentials and database secrets in `.env` only. The repository `.gitignore` excludes `.env` files.
 
 Generate Prisma Client and sync the database:
 
@@ -71,12 +75,14 @@ npm start
 
 ## Authentication
 
-The API uses manual JWT authentication.
+The API uses manual JWT authentication with short-lived access tokens and database-backed refresh tokens.
 
 Public routes:
 
 - `POST /api/auth/signup`
 - `POST /api/auth/login`
+- `POST /api/auth/refresh`
+- `POST /api/auth/logout`
 
 Protected routes require:
 
@@ -93,7 +99,7 @@ JWT payload:
 }
 ```
 
-Tokens expire after 12 hours.
+Access tokens expire after 15 minutes. Refresh tokens expire after 7 days, are stored as SHA-256 hashes in the database, and are rotated on every refresh request.
 
 ## API Routes
 
@@ -125,6 +131,45 @@ http://localhost:3000
   "password": "Password123!"
 }
 ```
+
+Both signup and login return:
+
+```json
+{
+  "accessToken": "jwt-access-token",
+  "refreshToken": "jwt-refresh-token",
+  "token": "jwt-access-token",
+  "tokenType": "Bearer",
+  "expiresIn": 900,
+  "user": {
+    "id": "user-id",
+    "fullName": "Sarah Jenkins",
+    "email": "sarah@example.com"
+  }
+}
+```
+
+`token` is included as a temporary compatibility alias for `accessToken`.
+
+`POST /api/auth/refresh`
+
+```json
+{
+  "refreshToken": "jwt-refresh-token"
+}
+```
+
+Returns a new access token and a new refresh token. The previous refresh token is revoked.
+
+`POST /api/auth/logout`
+
+```json
+{
+  "refreshToken": "jwt-refresh-token"
+}
+```
+
+Revokes the supplied refresh token.
 
 `GET /api/auth/me`
 
@@ -264,9 +309,10 @@ The collection stores `token`, `bookId`, and `memberId` as collection variables 
 `npm run seed` creates:
 
 - 10 books with real-looking titles/authors
-- 10 members with `M-####` member codes
-- 10 borrow records across `BORROWED`, `RETURNED`, and `OVERDUE`
+- Dashboard-scale books with `32,345` total copies and `12` missing books
+- 72 members, including `34` current-period new members
+- 4,360 borrow records powering `2,405` borrowed, `783` returned, and `45` overdue dashboard cards
 - 10 reservations
-- 10 visitor logs across the last 6 months
+- 2,964 visitor logs powering `1,504` current-period visitors
 
 The seed clears and recreates the demo library data tables before inserting records.
