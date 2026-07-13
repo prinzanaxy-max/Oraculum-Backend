@@ -34,9 +34,12 @@ ADMIN_PASSWORD="ChangeThisPassword123"
 ADMIN_NAME="Head Librarian"
 GOOGLE_CLIENT_ID="your-google-oauth-client-id"
 GOOGLE_CLIENT_SECRET="your-google-oauth-client-secret"
+RESEND_API_KEY="your-resend-api-key"
+RESEND_FROM="Oraculum Support <onboarding@resend.dev>"
+SUPPORT_EMAIL="admin@oraculum.edu.gh"
 ```
 
-Keep real OAuth credentials and database secrets in `.env` only. The repository `.gitignore` excludes `.env` files.
+Keep real OAuth credentials, Resend keys, and database secrets in `.env` only. The repository `.gitignore` excludes `.env` files.
 
 Generate Prisma Client and sync the database:
 
@@ -370,6 +373,27 @@ Returns the most borrowed books.
 `GET /api/dashboard/books-panel?tab=new&limit=10`
 
 Returns recently added books.
+
+### Support
+
+`POST /api/support/contact`
+
+Protected endpoint used by the Help page contact form. Saves the request and sends an email through Resend to `SUPPORT_EMAIL`.
+
+```json
+{
+  "subject": "Issue with checkout",
+  "message": "Tell us what happened..."
+}
+```
+
+Returns:
+
+```json
+{
+  "message": "Support request received"
+}
+```
 
 ## Postman
 

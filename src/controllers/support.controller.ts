@@ -2,6 +2,7 @@ import { Response } from 'express';
 import { z } from 'zod';
 import { AuthRequest } from '../middleware/auth.middleware';
 import { prisma } from '../lib/prisma';
+import { sendSupportContactEmail } from '../utils/email';
 
 const contactSchema = z.object({
   subject: z.string().min(1, 'Subject is required'),
@@ -12,13 +13,21 @@ export const createSupportContact = async (req: AuthRequest, res: Response) => {
   try {
     const data = contactSchema.parse(req.body);
 
-    await prisma.supportRequest.create({
+    const supportRequest = await prisma.supportRequest.create({
       data: {
         subject: data.subject,
         message: data.message,
         userId: req.userId,
         userEmail: req.userEmail,
       },
+    });
+
+    await sendSupportContactEmail({
+      requestId: supportRequest.id,
+      subject: supportRequest.subject,
+      message: supportRequest.message,
+      userId: supportRequest.userId,
+      userEmail: supportRequest.userEmail,
     });
 
     res.status(201).json({ message: 'Support request received' });
