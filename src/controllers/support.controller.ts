@@ -22,13 +22,17 @@ export const createSupportContact = async (req: AuthRequest, res: Response) => {
       },
     });
 
-    await sendSupportContactEmail({
-      requestId: supportRequest.id,
-      subject: supportRequest.subject,
-      message: supportRequest.message,
-      userId: supportRequest.userId,
-      userEmail: supportRequest.userEmail,
-    });
+    try {
+      await sendSupportContactEmail({
+        requestId: supportRequest.id,
+        subject: supportRequest.subject,
+        message: supportRequest.message,
+        userId: supportRequest.userId,
+        userEmail: supportRequest.userEmail,
+      });
+    } catch (emailError) {
+      console.error('Support request saved but email delivery failed:', emailError);
+    }
 
     res.status(201).json({ message: 'Support request received' });
   } catch (error: any) {
