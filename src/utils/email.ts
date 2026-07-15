@@ -39,7 +39,7 @@ export const sendSupportContactEmail = async (input: {
   const htmlRequestId = escapeHtml(input.requestId);
   const htmlUserId = input.userId ? escapeHtml(input.userId) : null;
 
-  await resend.emails.send({
+  const { data, error } = await resend.emails.send({
     from: emailConfig.from,
     to: emailConfig.supportEmail,
     replyTo: input.userEmail || undefined,
@@ -68,4 +68,11 @@ export const sendSupportContactEmail = async (input: {
       </div>
     `,
   });
+
+  if (error) {
+    console.error('Resend email failed:', error);
+    throw new Error(error.message);
+  }
+
+  return data;
 };
