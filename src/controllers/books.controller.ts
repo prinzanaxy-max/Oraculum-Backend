@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import { prisma } from '../lib/prisma';
-import { BookStatus } from '../generated/prisma';
+import { BookStatus } from '@prisma/client';
 import { z } from 'zod';
 
 const bookSchema = z.object({
