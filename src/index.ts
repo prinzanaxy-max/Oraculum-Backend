@@ -14,18 +14,34 @@ import supportRoutes from './routes/support.routes';
 
 const app = express();
 
-const allowedOrigins = [
+const normalizeOrigin = (origin: string) => origin.trim().replace(/\/$/, '');
+
+const staticAllowedOrigins = [
   'http://localhost:5173',
   'http://localhost:5174',
-  'https://oraculum-ab1.pages.dev',
   ...(process.env.FRONTEND_URL || '').split(','),
 ]
-  .map((origin) => origin.trim().replace(/\/$/, ''))
+  .map(normalizeOrigin)
   .filter(Boolean);
+
+const isAllowedOrigin = (origin: string) => {
+  const normalized = normalizeOrigin(origin);
+
+  if (staticAllowedOrigins.includes(normalized)) {
+    return true;
+  }
+
+  try {
+    const { hostname, protocol } = new URL(normalized);
+    return protocol === 'https:' && hostname.endsWith('.pages.dev');
+  } catch {
+    return false;
+  }
+};
 
 app.use(cors({
   origin: (origin, callback) => {
-    if (!origin || allowedOrigins.includes(origin.replace(/\/$/, ''))) {
+    if (!origin || isAllowedOrigin(origin)) {
       return callback(null, true);
     }
 
